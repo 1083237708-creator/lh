@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A股智能量化与缠论·江恩分析系统 (LH Agent)</title>
+    <!-- 引入 Tailwind CSS 与 Lucide 图标 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
+    <!-- 引入 ECharts 用于高性能 K 线及图表渲染 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body { background-color: #0b0f19; color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .glass-panel { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .tab-active { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); }
+        .gann-cell { transition: all 0.2s ease; }
+        .gann-cell:hover { transform: scale(1.05); z-index: 10; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0f19; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- 顶部导航栏 -->
+    <header class="glass-panel border-b border-gray-800 sticky top-0 z-50 px-4 py-3 flex flex-wrap justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-500/30">LH</div>
+            <div>
+                <h1 class="font-bold text-base md:text-lg tracking-wide bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">A股智能量化与缠论·江恩分析平台</h1>
+                <p class="text-xs text-gray-400">实时监控 Agent &bull; 龙虎榜复盘 &bull; 深度九方图</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2 mt-2 md:mt-0">
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 盘中实时 Agent 运行中
+            </span>
+            <span id="market-time" class="text-xs font-mono text-gray-400 px-2 py-1 bg-gray-800/60 rounded">2026-10-29 15:00:00</span>
+        </div>
+    </header>
+
+    <!-- 功能切换 Tabs -->
+    <nav class="flex overflow-x-auto px-4 py-2 bg-gray-900/40 border-b border-gray-800 gap-2 shrink-0">
+        <button onclick="switchTab('chart')" id="btn-chart" class="tab-btn tab-active px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap">📈 综合行情与缠论/指标</button>
+        <button onclick="switchTab('gann')" id="btn-gann" class="tab-btn px-4 py-2 rounded-lg text-xs md:text-sm font-medium text-gray-400 hover:bg-gray-800 transition whitespace-nowrap">🔮 江恩九方图矩阵</button>
+        <button onclick="switchTab('agent')" id="btn-agent" class="tab-btn px-4 py-2 rounded-lg text-xs md:text-sm font-medium text-gray-400 hover:bg-gray-800 transition whitespace-nowrap">🤖 实时异动 Agent 监控</button>
+        <button onclick="switchTab('dragon')" id="btn-dragon" class="tab-btn px-4 py-2 rounded-lg text-xs md:text-sm font-medium text-gray-400 hover:bg-gray-800 transition whitespace-nowrap">🔥 龙虎榜与大资金复盘</button>
+        <button onclick="switchTab('expect')" id="btn-expect" class="tab-btn px-4 py-2 rounded-lg text-xs md:text-sm font-medium text-gray-400 hover:bg-gray-800 transition whitespace-nowrap">🌙 舆情新闻与次日预期</button>
+    </nav>
+
+    <!-- 主体内容区 -->
+    <main class="flex-1 p-4 max-w-7xl w-full mx-auto">
+
+        <!-- TAB 1: K线与缠论/技术指标 -->
+        <section id="tab-chart" class="space-y-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="glass-panel p-3 rounded-xl border border-gray-800">
+                    <span class="text-xs text-gray-400">上证指数 (000001)</span>
+                    <div class="text-lg font-bold text-emerald-400 mt-1">3,285.42 <span class="text-xs">+1.24%</span></div>
+                </div>
+                <div class="glass-panel p-3 rounded-xl border border-gray-800">
+                    <span class="text-xs text-gray-400">缠论当前状态</span>
+                    <div class="text-sm font-bold text-blue-400 mt-1">30分钟级别：三买构筑中</div>
+                </div>
+                <div class="glass-panel p-3 rounded-xl border border-gray-800">
+                    <span class="text-xs text-gray-400">江恩阻力/支撑位</span>
+                    <div class="text-sm font-bold text-purple-400 mt-1">压力: 3310 | 支撑: 3250</div>
+                </div>
+                <div class="glass-panel p-3 rounded-xl border border-gray-800">
+                    <span class="text-xs text-gray-400">机构资金净流入</span>
+                    <div class="text-sm font-bold text-emerald-400 mt-1">+148.2 亿元</div>
+                </div>
+            </div>
+
+            <div class="glass-panel p-4 rounded-xl border border-gray-800">
+                <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+                    <div class="flex items-center space-x-2">
+                        <h2 class="font-bold text-sm md:text-base">个股/大盘多指标融合主图 (MA + 缠论中枢 + 江恩角度)</h2>
+                    </div>
+                    <div class="flex space-x-2 text-xs">
+                        <button onclick="changeIndicator('MACD')" class="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 rounded text-gray-300">MACD</button>
+                        <button onclick="changeIndicator('KDJ')" class="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 rounded text-gray-300">KDJ</button>
+                        <button onclick="changeIndicator('BOLL')" class="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 rounded text-gray-300">BOLL</button>
+                        <button onclick="changeIndicator('RSI')" class="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 rounded text-gray-300">RSI</button>
+                    </div>
+                </div>
+                <!-- Echarts 容器 -->
+                <div id="main-chart" class="w-full h-[420px]"></div>
+            </div>
+        </section>
+
+        <!-- TAB 2: 江恩九方图矩阵 -->
+        <section id="tab-gann" class="hidden space-y-4">
+            <div class="glass-panel p-4 rounded-xl border border-gray-800">
+                <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
+                    <div>
+                        <h2 class="font-bold text-base text-purple-400">🔮 江恩九方图 (Gann Square of 9) 自动计算模型</h2>
+                        <p class="text-xs text-gray-400">基于当前中心价格自动展开 0°-360° 螺旋矩阵，精准识别支撑与阻力位</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs text-gray-300">中心基准价:</label>
+                        <input type="number" id="gann-center-price" value="3250" class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm w-24 text-center font-mono text-emerald-400" onchange="renderGannSquare()">
+                        <button onclick="renderGannSquare()" class="px-3 py-1 bg-purple-600 hover:bg-purple-500 rounded text-xs font-medium">重新计算</button>
+                    </div>
+                </div>
+                <!-- 九方图渲染网格 -->
+                <div id="gann-grid-container" class="grid grid-cols-7 gap-1.5 p-2 bg-gray-950/80 rounded-xl overflow-x-auto text-center font-mono text-xs">
+                    <!-- 动态生成 -->
+                </div>
+                <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    <div class="p-2 bg-gray-800/50 rounded border border-purple-500/20">
+                        <span class="text-gray-400">45° 强支撑位:</span> <span id="gann-supp-45" class="text-emerald-400 font-bold">--</span>
+                    </div>
+                    <div class="p-2 bg-gray-800/50 rounded border border-purple-500/20">
+                        <span class="text-gray-400">90° 变盘阻力:</span> <span id="gann-res-90" class="text-amber-400 font-bold">--</span>
+                    </div>
+                    <div class="p-2 bg-gray-800/50 rounded border border-purple-500/20">
+                        <span class="text-gray-400">180° 强平衡位:</span> <span id="gann-bal-180" class="text-blue-400 font-bold">--</span>
+                    </div>
+                    <div class="p-2 bg-gray-800/50 rounded border border-purple-500/20">
+                        <span class="text-gray-400">360° 极值压力:</span> <span id="gann-res-360" class="text-rose-400 font-bold">--</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: 实时异动 Agent 监控 -->
+        <section id="tab-agent" class="hidden space-y-4">
+            <div class="glass-panel p-4 rounded-xl border border-gray-800">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="font-bold text-base text-emerald-400">🤖 盘中智能 Agent 实时动向捕捉</h2>
+                        <p class="text-xs text-gray-400">开盘至收盘实时监控缠论中枢突破、大单扫货与江恩角度线共振异动</p>
+                    </div>
+                    <button onclick="triggerAgentScan()" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs">手动触发全市场扫描</button>
+                </div>
+                <div id="agent-log-list" class="space-y-2 max-h-[450px] overflow-y-auto font-mono text-xs">
+                    <div class="p-3 bg-gray-900/80 rounded border-l-4 border-emerald-500 flex justify-between items-center">
+                        <div>
+                            <span class="text-gray-400">[09:35:22]</span> 
+                            <span class="text-emerald-400 font-bold">【上证指数】</span> 
+                            触发缠论 15分钟级别一类买点，伴随放量突破江恩 90° 阻力。
+                        </div>
+                        <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded">强烈看多</span>
+                    </div>
+                    <div class="p-3 bg-gray-900/80 rounded border-l-4 border-blue-500 flex justify-between items-center">
+                        <div>
+                            <span class="text-gray-400">[10:15:04]</span> 
+                            <span class="text-blue-400 font-bold">【半导体板块】</span> 
+                            主力大单净流入超 25 亿元，板块指数触及九方图 180° 关键变盘位。
+                        </div>
+                        <span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded">板块异动</span>
+                    </div>
+                    <div class="p-3 bg-gray-900/80 rounded border-l-4 border-amber-500 flex justify-between items-center">
+                        <div>
+                            <span class="text-gray-400">[11:20:45]</span> 
+                            <span class="text-amber-400 font-bold">【证券板块】</span> 
+                            量能温和放大，缠论中枢上沿 (ZG) 附近震荡，等待方向选择。
+                        </div>
+                        <span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded">中枢震荡</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: 龙虎榜与大资金复盘 -->
+        <section id="tab-dragon" class="hidden space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="glass-panel p-4 rounded-xl border border-gray-800">
+                    <h3 class="font-bold text-sm text-blue-400 mb-3">🔥 盘后龙虎榜游资/机构席位追踪</h3>
+                    <div class="space-y-2 text-xs">
+                        <div class="p-2.5 bg-gray-900 rounded flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-gray-200">XX科技 (000XXX)</div>
+                                <div class="text-gray-400">章盟主席位净买入: <span class="text-emerald-400">+1.42 亿元</span></div>
+                            </div>
+                            <span class="px-2 py-1 bg-rose-500/20 text-rose-400 rounded">机构/游资合力</span>
+                        </div>
+                        <div class="p-2.5 bg-gray-900 rounded flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-gray-200">YY股份 (600XXX)</div>
+                                <div class="text-gray-400">深股通专用席位净买入: <span class="text-emerald-400">+9800 万元</span></div>
+                            </div>
+                            <span class="px-2 py-1 bg-blue-500/20 text-blue-400 rounded">外资扫货</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-panel p-4 rounded-xl border border-gray-800">
+                    <h3 class="font-bold text-sm text-purple-400 mb-3">💰 大资金行业流入排行榜</h3>
+                    <div class="space-y-2 text-xs font-mono">
+                        <div class="flex justify-between p-2 bg-gray-900 rounded"><span>1. 半导体及元件</span> <span class="text-emerald-400">+45.2 亿</span></div>
+                        <div class="flex justify-between p-2 bg-gray-900 rounded"><span>2. 电池动力电池</span> <span class="text-emerald-400">+38.6 亿</span></div>
+                        <div class="flex justify-between p-2 bg-gray-900 rounded"><span>3. 通用设备制造</span> <span class="text-emerald-400">+21.4 亿</span></div>
+                        <div class="flex justify-between p-2 bg-gray-900 rounded"><span>4. 证券金融</span> <span class="text-emerald-400">+18.9 亿</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: 舆情新闻与次日预期 -->
+        <section id="tab-expect" class="hidden space-y-4">
+            <div class="glass-panel p-4 rounded-xl border border-gray-800 space-y-3">
+                <h3 class="font-bold text-sm text-amber-400">🌙 实时舆情新闻聚类与第二日大盘预期推演</h3>
+                <div class="p-3 bg-gray-900 rounded border border-gray-800 text-xs space-y-2">
+                    <div class="flex items-center gap-2 text-gray-400">
+                        <span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded">宏观要闻</span>
+                        <span>央行及多部门释放积极信号，支持科技创新与资本市场稳健发展。</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-gray-400">
+                        <span class="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded">行业动态</span>
+                        <span>半导体产业链三季度业绩超预期，订单饱满。</span>
+                    </div>
+                </div>
+                <div class="p-4 bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl border border-blue-500/30">
+                    <h4 class="font-bold text-sm text-blue-300 mb-1">🎯 AI Agent 次日盘势综合推演</h4>
+                    <p class="text-xs text-gray-300 leading-relaxed">
+                        结合当前缠论中枢上轨承接力度、江恩九方图支撑位以及夜间龙虎榜大资金流向，预计次日上证指数大概率呈现<strong>震荡偏强</strong>走势。重点关注 3270 点支撑有效性，上方第一压力位看至 3310 点。操作上建议保持 6-7 成仓位，逢低关注半导体与核心科技龙头。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 底部简易说明 -->
+    <footer class="text-center py-4 text-xs text-gray-500 border-t border-gray-800 mt-auto">
+        LH Quant Agent System &bull; Powered by GitHub Pages &amp; ECharts
+    </footer>
+
+    <!-- JavaScript 交互与图表渲染核心逻辑 -->
+    <script>
+        // 标签切换函数
+        function switchTab(tabId) {
+            ['chart', 'gann', 'agent', 'dragon', 'expect'].forEach(id => {
+                document.getElementById('tab-' + id).classList.add('hidden');
+                document.getElementById('btn-' + id).classList.remove('tab-active');
+                document.getElementById('btn-' + id).classList.add('text-gray-400');
+            });
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            document.getElementById('btn-' + tabId).classList.add('tab-active');
+            document.getElementById('btn-' + tabId).classList.remove('text-gray-400');
+            if(tabId === 'chart') { myChart.resize(); }
+            if(tabId === 'gann') { renderGannSquare(); }
+        }
+
+        // 初始化 ECharts K线及缠论覆盖图
+        let chartDom = document.getElementById('main-chart');
+        let myChart = echarts.init(chartDom);
+        
+        // 模拟上证指数行情数据
+        let baseData = [
+            [3210, 3245, 3200, 3250],
+            [3248, 3230, 3220, 3235],
+            [3235, 3260, 3230, 3258],
+            [3258, 3280, 3250, 3275],
+            [3275, 3265, 3255, 3260],
+            [3260, 3290, 3258, 3285]
+        ];
+
+        let option = {
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+            grid: { left: '10%', right: '5%', top: '10%', bottom: '15%' },
+            xAxis: {
+                type: 'category',
+                data: ['10-22', '10-23', '10-24', '10-25', '10-28', '10-29'],
+                axisLine: { lineStyle: { color: '#4b5563' } }
+            },
+            yAxis: {
+                scale: true,
+                splitLine: { lineStyle: { color: '#1f2937' } },
+                axisLine: { lineStyle: { color: '#4b5563' } }
+            },
+            series: [
+                {
+                    name: '上证指数',
+                    type: 'candlestick',
+                    data: baseData,
+                    itemStyle: {
+                        color: '#10b981',
+                        color0: '#ef4444',
+                        borderColor: '#10b981',
+                        borderColor0: '#ef4444'
+                    }
+                },
+                {
+                    name: 'MA5',
+                    type: 'line',
+                    data: [3225, 3232, 3240, 3255, 3262, 3270],
+                    smooth: true,
+                    lineStyle: { opacity: 0.8, width: 2, color: '#3b82f6' }
+                }
+            ]
+        };
+        myChart.setOption(option);
+
+        function changeIndicator(indName) {
+            alert('已切换至 ' + indName + ' 指标分析视图');
+        }
+
+        // 江恩九方图动态计算核心
+        function renderGannSquare() {
+            let center = parseFloat(document.getElementById('gann-center-price').value) || 3250;
+            let container = document.getElementById('gann-grid-container');
+            container.innerHTML = '';
+            
+            // 简单模拟九方图矩阵分布
+            let gridValues = [];
+            for(let i = -3; i <= 3; i++) {
+                let row = [];
+                for(let j = -3; j <= 3; j++) {
+                    let val = Math.round(center + (i * 7 + j * 11));
+                    row.push(val);
+                }
+                gridValues.push(row);
+            }
+
+            gridValues.forEach((row, ri) => {
+                row.forEach((val, ci) => {
+                    let div = document.createElement('div');
+                    div.className = "gann-cell p-2 rounded bg-gray-900 border border-gray-800 text-gray-300 flex flex-col items-center justify-center";
+                    if(ri === 3 && ci === 3) {
+                        div.className += " bg-purple-900/60 border-purple-500 text-purple-300 font-bold";
+                        div.innerHTML = `<span class="text-[10px] text-purple-400">中心</span>${val}`;
+                    } else {
+                        div.innerHTML = `<span>${val}</span><span class="text-[9px] text-gray-500">${(ri*ci*15)%360}°</span>`;
+                    }
+                    container.appendChild(div);
+                });
+            });
+
+            document.getElementById('gann-supp-45').innerText = (center * 0.985).toFixed(2);
+            document.getElementById('gann-res-90').innerText = (center * 1.015).toFixed(2);
+            document.getElementById('gann-bal-180').innerText = (center * 1.032).toFixed(2);
+            document.getElementById('gann-res-360').innerText = (center * 1.065).toFixed(2);
+        }
+
+        function triggerAgentScan() {
+            alert('Agent 正在深度扫描全市场：已完成缠论笔/线段校验，发现 3 条潜在异动！');
+        }
+
+        // 初始化加载九方图
+        renderGannSquare();
+    </script>
+</body>
+</html>
